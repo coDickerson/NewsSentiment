@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import boto3
-from datetime import date, datetime
+from datetime import datetime
 from dotenv import load_dotenv
-from eventregistry import EventRegistry, QueryArticlesIter, ArticleInfoFlags, ReturnInfo
+from eventregistry import EventRegistry, QueryArticlesIter
 
 load_dotenv()
 
@@ -19,36 +19,30 @@ class NewsIngestor:
         self.s3_client = boto3.client('s3')
 
     def fetch_financial_news(self, max_articles=100):
-        """Fetches today's financial news articles via newsapi.ai"""
-        today = date.today().isoformat()
-
+        """Fetches recent financial news articles via newsapi.ai"""
         q = QueryArticlesIter(
-            keywords='"S&P 500" OR NVIDIA OR earnings OR "stock market" OR economy',
-            dateStart=today,
-            dateEnd=today,
+            keywords='"stock market" OR earnings',
             lang='eng',
-            isDuplicateFilter='skipDuplicates',
-        )
-
-        return_info = ReturnInfo(
-            articleInfo=ArticleInfoFlags(bodyLen=300, authors=True)
         )
 
         articles = []
-        for article in q.execQuery(self.er, sortBy='date', maxItems=max_articles, returnInfo=return_info):
+        for article in q.execQuery(self.er, sortBy='date', maxItems=max_articles):
             articles.append(article)
 
         return articles
 
     def process_to_dataframe(self, articles):
         """Data cleaning and transformation"""
+        if not articles:
+            print("No articles returned from API.")
+            return pd.DataFrame(columns=['source_name', 'author', 'title', 'description', 'url', 'publishedAt'])
         rows = []
         for a in articles:
             rows.append({
                 'source_name': a.get('source', {}).get('title', ''),
                 'author': ', '.join(auth.get('name', '') for auth in a.get('authors', [])),
                 'title': a.get('title', ''),
-                'description': a.get('body', ''),
+                'description': (a.get('body', '') or '')[:500],
                 'url': a.get('url', ''),
                 'publishedAt': a.get('dateTime', ''),
             })
