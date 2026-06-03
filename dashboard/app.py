@@ -1,8 +1,11 @@
+import logging
 import os
 import pandas as pd
 import streamlit as st
 import snowflake.connector
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -64,7 +67,8 @@ def load_data() -> pd.DataFrame:
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"Could not load data from Snowflake: {e}")
+    logger.exception("Snowflake load failed")
+    st.error("Could not load data. Please try again later.")
     st.stop()
 
 if df.empty:
@@ -159,7 +163,7 @@ st.dataframe(
     display,
     use_container_width=True,
     column_config={
-        "URL": st.column_config.LinkColumn("URL"),
+        "URL": st.column_config.LinkColumn("URL", validate=r"^https?://"),
         "Published": st.column_config.DatetimeColumn("Published", format="MMM D, YYYY HH:mm"),
     },
     hide_index=True,
