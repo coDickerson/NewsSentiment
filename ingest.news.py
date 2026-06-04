@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import boto3
-from datetime import date, datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-from eventregistry import EventRegistry, QueryArticlesIter, ArticleInfoFlags, ReturnInfo
+from eventregistry import EventRegistry, QueryArticlesIter, QueryItems
 
 load_dotenv()
 
@@ -19,23 +19,23 @@ class NewsIngestor:
         self.s3_client = boto3.client('s3')
 
     def fetch_financial_news(self, max_articles=100):
-        """Fetches today's financial news articles via newsapi.ai"""
-        today = date.today().isoformat()
+        """Fetches the latest financial news articles via newsapi.ai.
+        Uses a 2-day UTC window to avoid missing articles when the API
+        has rolled past midnight UTC but local date hasn't yet.
+        """
+        now_utc = datetime.now(timezone.utc)
+        date_end = now_utc.strftime('%Y-%m-%d')
+        date_start = (now_utc - timedelta(days=1)).strftime('%Y-%m-%d')
 
         q = QueryArticlesIter(
-            keywords='"S&P 500" OR NVIDIA OR earnings OR "stock market" OR economy',
-            dateStart=today,
-            dateEnd=today,
+            keywords=QueryItems.OR(['S&P 500', 'NVIDIA', 'earnings', 'stock market', 'economy']),
+            dateStart=date_start,
+            dateEnd=date_end,
             lang='eng',
-            isDuplicateFilter='skipDuplicates',
-        )
-
-        return_info = ReturnInfo(
-            articleInfo=ArticleInfoFlags(bodyLen=300, authors=True)
         )
 
         articles = []
-        for article in q.execQuery(self.er, sortBy='date', maxItems=max_articles, returnInfo=return_info):
+        for article in q.execQuery(self.er, sortBy='date', maxItems=max_articles):
             articles.append(article)
 
         return articles
