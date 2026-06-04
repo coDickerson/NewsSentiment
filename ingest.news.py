@@ -42,6 +42,9 @@ class NewsIngestor:
 
     def process_to_dataframe(self, articles):
         """Data cleaning and transformation"""
+        if not articles:
+            return pd.DataFrame(columns=['source_name', 'author', 'title', 'description', 'url', 'publishedAt'])
+
         rows = []
         for a in articles:
             rows.append({
@@ -77,5 +80,12 @@ class NewsIngestor:
 if __name__ == "__main__":
     ingestor = NewsIngestor()
     raw_articles = ingestor.fetch_financial_news()
+    print(f"Fetched {len(raw_articles)} articles")
+    if not raw_articles:
+        print("No articles returned — daily quota may be exhausted or API key invalid")
+        exit(0)
     df = ingestor.process_to_dataframe(raw_articles)
+    if df.empty:
+        print("No valid articles after processing")
+        exit(0)
     ingestor.upload_to_s3(df)
