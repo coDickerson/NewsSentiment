@@ -51,7 +51,7 @@ class NewsIngestor:
                 'source_name': a.get('source', {}).get('title', ''),
                 'author': ', '.join(auth.get('name', '') for auth in a.get('authors', [])),
                 'title': a.get('title', ''),
-                'description': a.get('body', ''),
+                'description': (a.get('body', '') or '')[:500],
                 'url': a.get('url', ''),
                 'publishedAt': a.get('dateTime', ''),
             })
